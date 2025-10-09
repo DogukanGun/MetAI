@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import os
 
 
 def render_results_tab():
@@ -244,7 +245,7 @@ def render_results_tab():
                     with cols[idx % 3]:
                         # Calculate timestamp
                         timestamp = idx * 5.0  # 5 seconds per frame
-                        st.image(frame_path, caption=f"Frame at {timestamp:.1f}s", use_container_width=True)
+                        st.image(frame_path, caption=f"Frame at {timestamp:.1f}s", use_column_width=True)
             
             # Show frame storage info
             if 'frames_folder' in results:

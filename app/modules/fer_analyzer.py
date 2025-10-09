@@ -191,6 +191,9 @@ class FERAnalyzer:
         else:
             raise ValueError(f"Unknown model type: {model_type}")
         
+        # Initialize weights properly
+        self._initialize_weights()
+        
         self.model.to(self.device)
         self.model.eval()
         
@@ -211,6 +214,21 @@ class FERAnalyzer:
             self.face_cascade = None
         
         self.logger.info(f"FER Analyzer initialized with {model_type} on {self.device}")
+    
+    def _initialize_weights(self):
+        """Initialize model weights to avoid meta tensor issues."""
+        for m in self.model.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
     
     def detect_face(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
