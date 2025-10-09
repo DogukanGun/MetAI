@@ -1,0 +1,46 @@
+{
+  "emotions": [
+    {
+      "id": 0,
+      "name": "neutral",
+      "description": "No strong emotional expression",
+      "color": "#95a5a6"
+    },
+    {
+      "id": 1,
+      "name": "happy",
+      "description": "Positive, joyful emotion",
+      "color": "#f1c40f"
+    },
+    {
+      "id": 2,
+      "name": "sad",
+      "description": "Sorrowful, melancholic emotion",
+      "color": "#3498db"
+    },
+    {
+      "id": 3,
+      "name": "angry",
+      "description": "Irritated, furious emotion",
+      "color": "#e74c3c"
+    },
+    {
+      "id": 4,
+      "name": "fear",
+      "description": "Anxious, frightened emotion",
+      "color": "#9b59b6"
+    },
+    {
+      "id": 5,
+      "name": "disgust",
+      "description": "Repulsed, aversive emotion",
+      "color": "#16a085"
+    },
+    {
+      "id": 6,
+      "name": "surprise",
+      "description": "Unexpected, astonished emotion",
+      "color": "#e67e22"
+    }
+  ]
+}

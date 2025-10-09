@@ -1,0 +1,66 @@
+system:
+  name: "Multimodal Emotion Recognition System"
+  version: "1.0.0"
+
+modalities:
+  audio:
+    enabled: true
+    sample_rate: 16000
+    window_size: 3.0  # seconds
+    hop_length: 1.5   # seconds
+    n_mfcc: 40
+    extract_opensmile: true
+  
+  visual:
+    enabled: true
+    fps: 5
+    face_detection: "mediapipe"  # options: mediapipe, opencv, mtcnn
+    extract_action_units: true
+    extract_landmarks: true
+    
+  text:
+    enabled: true
+    asr_model: "openai/whisper-base"
+    embedding_model: "all-MiniLM-L6-v2"
+    extract_sentiment: true
+
+fusion:
+  strategy: "early"  # options: early, late, attention
+  model: "rfrboost"
+
+rfrboost:
+  n_layers: 6
+  hidden_dim: 256
+  randfeat_xt_dim: 512
+  randfeat_x0_dim: 512
+  boost_lr: 0.5
+  feature_type: "SWIM"
+  upscale_type: "SWIM"
+  activation: "tanh"
+  use_batchnorm: true
+  do_linesearch: true
+  l2_cls: 0.001
+  l2_ghat: 0.001
+
+emotions:
+  labels: ['neutral', 'happy', 'sad', 'angry', 'fear', 'disgust', 'surprise']
+  colors:
+    neutral: "#95a5a6"
+    happy: "#f1c40f"
+    sad: "#3498db"
+    angry: "#e74c3c"
+    fear: "#9b59b6"
+    disgust: "#16a085"
+    surprise: "#e67e22"
+
+output:
+  save_json: true
+  save_csv: true
+  save_video: false
+  save_report: true
+  
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  results: "data/results"
+  pretrained: "pretrained"
