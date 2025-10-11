@@ -182,8 +182,10 @@ class FERAnalyzer:
         # FER2013 emotion labels
         self.emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
         
-        # Initialize model
+        # Initialize model with proper device handling (production-level)
         self.model_type = model_type
+        
+        # Create model on CPU first
         if model_type == 'swin_transformer':
             self.model = SwinTransformerFER(num_classes=len(self.emotion_labels))
         elif model_type == 'custom_cnn':
@@ -191,10 +193,9 @@ class FERAnalyzer:
         else:
             raise ValueError(f"Unknown model type: {model_type}")
         
-        # Initialize weights properly
-        self._initialize_weights()
+        # Production-level fix: Handle meta tensors properly
+        self._materialize_and_initialize_model()
         
-        self.model.to(self.device)
         self.model.eval()
         
         # Image preprocessing
@@ -215,20 +216,64 @@ class FERAnalyzer:
         
         self.logger.info(f"FER Analyzer initialized with {model_type} on {self.device}")
     
+    def _materialize_and_initialize_model(self):
+        """
+        Production-level model initialization handling meta tensors.
+        
+        This method properly materializes meta tensors and initializes weights
+        before moving the model to the target device.
+        """
+        # Step 1: Check if model has meta tensors and materialize them
+        has_meta_tensors = any(param.is_meta for param in self.model.parameters())
+        
+        if has_meta_tensors:
+            self.logger.info("Detected meta tensors, materializing model...")
+            # Use to_empty to materialize meta tensors
+            self.model = self.model.to_empty(device=self.device)
+        
+        # Step 2: Initialize all parameters with proper values
+        with torch.no_grad():
+            for name, param in self.model.named_parameters():
+                if param.is_meta:
+                    self.logger.error(f"Parameter {name} is still meta after materialization!")
+                    continue
+                    
+                # Initialize based on parameter type
+                if 'weight' in name:
+                    if len(param.shape) >= 2:  # Conv or Linear weight
+                        nn.init.kaiming_normal_(param, mode='fan_out', nonlinearity='relu')
+                    else:  # BatchNorm or other 1D weights
+                        nn.init.constant_(param, 1.0)
+                elif 'bias' in name:
+                    nn.init.constant_(param, 0.0)
+        
+        # Step 3: Move to device if not already there
+        if not has_meta_tensors:
+            self.model = self.model.to(self.device)
+        
+        self.logger.info(f"Model successfully initialized on {self.device}")
+    
     def _initialize_weights(self):
-        """Initialize model weights to avoid meta tensor issues."""
-        for m in self.model.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+        """Legacy weight initialization method (kept for backward compatibility)."""
+        try:
+            for m in self.model.modules():
+                if isinstance(m, nn.Conv2d):
+                    if not m.weight.is_meta:
+                        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                    if m.bias is not None and not m.bias.is_meta:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.BatchNorm2d):
+                    if not m.weight.is_meta:
+                        nn.init.constant_(m.weight, 1)
+                    if not m.bias.is_meta:
+                        nn.init.constant_(m.bias, 0)
+                elif isinstance(m, nn.Linear):
+                    if not m.weight.is_meta:
+                        nn.init.normal_(m.weight, 0, 0.01)
+                    if m.bias is not None and not m.bias.is_meta:
+                        nn.init.constant_(m.bias, 0)
+        except Exception as e:
+            self.logger.warning(f"Weight initialization skipped due to: {e}")
     
     def detect_face(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -445,10 +490,21 @@ class FERAnalyzer:
         mental_health_score = 50 + (positive_pct - negative_pct) / 2
         mental_health_score = max(0, min(100, mental_health_score))
         
+        # Determine status based on score
+        if mental_health_score >= 70:
+            status = "Good"
+        elif mental_health_score >= 50:
+            status = "Moderate"
+        elif mental_health_score >= 30:
+            status = "Concerning"
+        else:
+            status = "At Risk"
+        
         result = {
             'avg_confidence': float(avg_confidence),
             'num_frames': total,
             'mental_health_score': float(mental_health_score),
+            'status': status,
             'emotion_distribution': emotion_percentages,
             'dominant_emotion': max(emotion_counts, key=emotion_counts.get),
             'positive_percentage': float(positive_pct),

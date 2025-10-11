@@ -59,8 +59,14 @@ class VideoProcessor:
             try:
                 video = VideoFileClip(self.video_path)
                 if video.audio is None:
-                    self.logger.warning("No audio track found in video")
-                    return np.array([]), sample_rate, ""
+                    self.logger.warning("No audio track found in video - trying librosa fallback")
+                    video.close()
+                    # Try librosa as fallback
+                    try:
+                        return self._extract_audio_with_librosa(sample_rate)
+                    except Exception as e2:
+                        self.logger.error(f"Librosa fallback also failed: {e2}")
+                        return np.array([]), sample_rate, ""
                 
                 video.audio.write_audiofile(
                     audio_path,
@@ -72,24 +78,46 @@ class VideoProcessor:
             except Exception as e:
                 self.logger.error(f"Error extracting audio with moviepy: {e}")
                 # Fallback to librosa
-                return self._extract_audio_with_librosa(sample_rate)
+                try:
+                    return self._extract_audio_with_librosa(sample_rate)
+                except Exception as e2:
+                    self.logger.error(f"Librosa fallback also failed: {e2}")
+                    return np.array([]), sample_rate, ""
         else:
-            return self._extract_audio_with_librosa(sample_rate)
+            try:
+                return self._extract_audio_with_librosa(sample_rate)
+            except Exception as e:
+                self.logger.error(f"Audio extraction failed: {e}")
+                return np.array([]), sample_rate, ""
         
         # Load with librosa for processing
-        audio, sr = librosa.load(audio_path, sr=sample_rate)
-        
-        self.logger.info(f"Audio extracted: {len(audio)} samples at {sr} Hz")
-        return audio, sr, audio_path
+        try:
+            audio, sr = librosa.load(audio_path, sr=sample_rate)
+            self.logger.info(f"Audio extracted: {len(audio)} samples at {sr} Hz")
+            return audio, sr, audio_path
+        except Exception as e:
+            self.logger.error(f"Failed to load extracted audio: {e}")
+            return np.array([]), sample_rate, ""
     
     def _extract_audio_with_librosa(self, sample_rate: int) -> Tuple[np.ndarray, int, str]:
         """Fallback audio extraction using librosa."""
+        import warnings
         audio_path = os.path.join(self.output_dir, "audio.wav")
-        audio, sr = librosa.load(self.video_path, sr=sample_rate)
+        
+        # Suppress expected warnings when loading from video files
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='PySoundFile failed')
+            warnings.filterwarnings('ignore', category=FutureWarning)
+            audio, sr = librosa.load(self.video_path, sr=sample_rate)
         
         # Save to file
-        import soundfile as sf
-        sf.write(audio_path, audio, sr)
+        try:
+            import soundfile as sf
+            sf.write(audio_path, audio, sr)
+        except Exception as e:
+            self.logger.warning(f"Could not save audio with soundfile: {e}, using scipy instead")
+            from scipy.io import wavfile
+            wavfile.write(audio_path, sr, (audio * 32767).astype(np.int16))
         
         return audio, sr, audio_path
     

@@ -15,12 +15,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import modules
 from modules.stage2_unimodal import AudioFeatureExtractor, VisualFeatureExtractor, TextFeatureExtractor
 from utils.helpers import load_config, setup_logging, format_duration
-from tabs import render_upload_tab, render_results_tab, render_help_tab
+from tabs import render_upload_tab, render_results_tab, render_help_tab, render_knowledge_tab
 
 # Page configuration
 st.set_page_config(
     page_title="Multimodal Emotion Recognition",
-    page_icon="🎭",
+    page_icon=":material/psychology:",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -143,6 +143,36 @@ def main():
         config['fusion_strategy'] = fusion_strategy
         
         st.markdown("---")
+        st.subheader("AI Agent Configuration")
+        
+        # LLM Provider Selection
+        llm_provider = st.selectbox(
+            "LLM Provider",
+            options=["Cloud (OpenAI)", "Local (Ollama/LM Studio)"],
+            help="Choose between cloud-based OpenAI or local LLM"
+        )
+        
+        # Store in session state for use in tabs
+        st.session_state['llm_provider'] = llm_provider
+        
+        if llm_provider == "Cloud (OpenAI)":
+            st.info("""
+            **Cloud Provider (OpenAI)**
+            - Uses GPT-4 or GPT-3.5-Turbo
+            - Requires OPENAI_API_KEY in .env
+            - Best quality analysis
+            - Pay per use
+            """)
+        else:
+            st.info("""
+            **Local Provider (Ollama/LM Studio)**
+            - Uses locally running models
+            - Free and private
+            - Requires local LLM server running
+            - Configure LOCAL_LLM_BASE_URL in .env
+            """)
+        
+        st.markdown("---")
         st.subheader("About")
         
         if fusion_strategy == "Hybrid (Best)":
@@ -171,7 +201,7 @@ def main():
         extractors = initialize_extractors(config)
     
     # Main content - Tabs
-    tab1, tab2, tab3 = st.tabs(["Upload & Analyze", "Results", "Help"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Upload & Analyze", "Results", "Knowledge Base", "Help"])
     
     with tab1:
         render_upload_tab(config, extractors)
@@ -180,6 +210,9 @@ def main():
         render_results_tab()
     
     with tab3:
+        render_knowledge_tab()
+    
+    with tab4:
         render_help_tab(config)
 
 

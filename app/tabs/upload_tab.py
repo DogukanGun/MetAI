@@ -39,6 +39,12 @@ def process_video_pipeline(video_path, config, extractors):
         results['sample_rate'] = sr
         results['audio_path'] = audio_path
         
+        # Log audio extraction status
+        if len(audio) == 0:
+            st.warning("No audio track found in this video or audio extraction failed")
+            import logging
+            logging.warning("Audio extraction returned empty array")
+        
         # Extract frames
         frames, timestamps = processor.extract_frames(
             fps=config['modalities']['visual']['fps']
@@ -303,6 +309,67 @@ def render_upload_tab(config, extractors):
                     results = process_video_pipeline(video_path, config, extractors)
                     
                     if results:
+                        # Run AI Agent Analysis
+                        status_text = st.empty()
+                        status_text.text("Running AI Agent Analysis...")
+                        
+                        try:
+                            from modules.ai_agent import MeetingAnalysisAgent
+                            from knowledge_base.retrieval.query_engine import QueryEngine
+                            from knowledge_base.ingestion.vector_store_manager import VectorStoreManager
+                            
+                            # Initialize knowledge base components
+                            try:
+                                vector_store = VectorStoreManager(
+                                    storage_path="./knowledge_base/storage",
+                                    embedding_model="sentence-transformers"
+                                )
+                                query_engine = QueryEngine(vector_store)
+                            except Exception as e:
+                                st.warning(f"Knowledge base not available: {e}")
+                                query_engine = None
+                            
+                            # Get LLM provider from session state
+                            llm_provider = st.session_state.get('llm_provider', 'Cloud (OpenAI)')
+                            provider = "local" if "Local" in llm_provider else "cloud"
+                            
+                            # Initialize AI agent with selected provider
+                            agent = MeetingAnalysisAgent(
+                                query_engine=query_engine,
+                                provider=provider
+                            )
+                            
+                            # Prepare data for agent
+                            emotion_data = {
+                                'overall_prediction': results.get('prediction', {}),
+                                'temporal_predictions': results.get('temporal_predictions', []),
+                                'mental_health_analysis': results.get('mental_health_analysis', {})
+                            }
+                            
+                            video_meta = {
+                                'filename': st.session_state.get('uploaded_filename', 'video.mp4'),
+                                'duration': results.get('metadata', {}).get('duration', 0),
+                                'upload_date': results.get('metadata', {}).get('upload_date', 'Unknown')
+                            }
+                            
+                            transcription = results.get('transcription', {}).get('text', '')
+                            
+                            # Generate AI analysis
+                            context_query = f"meeting analysis video call {transcription[:200] if transcription else ''}"
+                            ai_analysis = agent.analyze_meeting(
+                                emotion_results=emotion_data,
+                                video_metadata=video_meta,
+                                transcription=transcription,
+                                context_query=context_query
+                            )
+                            
+                            results['ai_analysis'] = ai_analysis
+                            status_text.empty()
+                            
+                        except Exception as e:
+                            st.warning(f"AI Agent analysis unavailable: {e}")
+                            results['ai_analysis'] = None
+                        
                         # Store results in session state
                         st.session_state['results'] = results
                         st.session_state['config'] = config

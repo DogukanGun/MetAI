@@ -48,9 +48,17 @@ class ASRModule:
         
         if self.use_transformers and TRANSFORMERS_WHISPER_AVAILABLE:
             try:
+                import torch
                 model_id = f"openai/whisper-{self.model_name}"
                 self.processor = WhisperProcessor.from_pretrained(model_id)
-                self.model = WhisperForConditionalGeneration.from_pretrained(model_id)
+                
+                # Load model with explicit device handling to avoid meta tensor issues
+                self.model = WhisperForConditionalGeneration.from_pretrained(
+                    model_id,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=False  # Avoid meta tensors
+                )
+                
                 self.logger.info("Loaded Whisper from transformers")
             except Exception as e:
                 self.logger.error(f"Error loading transformers Whisper: {e}")

@@ -1,0 +1,26 @@
+# Knowledge Base Dependencies
+# For multimodal RAG system
+
+# Core LangChain
+langchain>=0.1.0
+langchain-community>=0.0.20
+
+# Vector Store
+faiss-cpu>=1.7.4  # Use faiss-gpu if GPU available
+
+# Embeddings
+sentence-transformers>=2.2.0
+
+# Document Processing
+PyMuPDF>=1.23.0  # For PDF processing (fitz)
+Pillow>=10.0.0  # For image processing
+python-docx>=1.0.0  # For DOCX files (optional)
+
+# Multimodal (CLIP for image-text)
+transformers>=4.35.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Utilities
+pypdf>=3.17.0  # Alternative PDF parser
+unstructured>=0.10.0  # Document parsing (optional)

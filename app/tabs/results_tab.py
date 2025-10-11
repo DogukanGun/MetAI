@@ -32,29 +32,152 @@ def render_results_tab():
         
         st.markdown("---")
         
-        # Prediction results
-        if 'prediction' in results:
-            st.subheader("Detected Emotion")
+        # Emotion Analysis by Modality
+        st.header("Emotion Analysis by Modality")
+        st.write("Results categorized by analysis type (facial, audio, text, and combined)")
+        
+        # Create tabs for different modalities
+        modality_tabs = st.tabs([
+            "Facial (FER)",
+            "Audio/Voice", 
+            "Text/Transcript",
+            "Multimodal Combined"
+        ])
+        
+        # Tab 1: Facial Emotions (FER) - From FER Analysis
+        with modality_tabs[0]:
+            st.subheader("Facial Expression Recognition")
+            st.caption("Emotion detection based purely on facial expressions from video frames")
             
-            pred = results['prediction']
-            
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
-                st.markdown(f"### **{pred['predicted_emotion'].upper()}**")
-                st.metric("Confidence", f"{pred['confidence']:.1%}")
-            
-            with col2:
-                st.markdown("**Confidence Distribution:**")
-                emotion_labels = list(pred['all_confidences'].keys())
-                confidences = list(pred['all_confidences'].values())
+            if 'mental_health_analysis' in results and results['mental_health_analysis']:
+                mh = results['mental_health_analysis']
                 
-                # Bar chart
-                df = pd.DataFrame({
-                    'Emotion': emotion_labels,
-                    'Confidence': confidences
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Dominant Facial Emotion", mh['dominant_emotion'].title())
+                with col2:
+                    st.metric("Average Confidence", f"{mh['avg_confidence']:.1%}")
+                with col3:
+                    st.metric("Frames Analyzed", mh['num_frames'])
+                
+                # Facial emotion distribution
+                st.write("**Facial Emotion Distribution:**")
+                facial_df = pd.DataFrame({
+                    'Emotion': [e.title() for e in mh['emotion_distribution'].keys()],
+                    'Percentage': list(mh['emotion_distribution'].values())
                 })
-                st.bar_chart(df.set_index('Emotion'))
+                st.bar_chart(facial_df.set_index('Emotion'))
+                
+                # Positive vs Negative
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Positive Emotions", f"{mh['positive_percentage']:.1f}%", 
+                             help="Happy, Surprise")
+                with col2:
+                    st.metric("Negative Emotions", f"{mh['negative_percentage']:.1f}%",
+                             help="Sad, Angry, Fear, Disgust")
+            else:
+                st.info("Facial emotion analysis not available. Upload a video with visible faces.")
+        
+        # Tab 2: Audio/Voice Emotions
+        with modality_tabs[1]:
+            st.subheader("Audio & Voice Analysis")
+            st.caption("Emotion detection from voice tone, prosody, pitch, and acoustic features")
+            
+            if 'audio_features' in results and results['audio_features']:
+                st.write("**Audio Features Extracted:**")
+                audio_feat = results['audio_features']
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Audio Features", len(audio_feat))
+                with col2:
+                    if 'prosodic' in audio_feat:
+                        st.write("Prosodic (pitch, energy, rhythm)")
+                    if 'spectral' in audio_feat:
+                        st.write("Spectral (MFCCs, mel-spectrogram)")
+                with col3:
+                    if 'opensmile' in audio_feat:
+                        st.write("OpenSMILE features")
+                    st.write("Voice quality (jitter, shimmer)")
+                
+                st.info("Audio-specific emotion predictions are integrated in the 'Multimodal Combined' tab. Individual audio models analyze voice tone, speaking rate, and vocal patterns.")
+            else:
+                st.warning("No audio features extracted from this video")
+        
+        # Tab 3: Text Emotions
+        with modality_tabs[2]:
+            st.subheader("Text & Transcription Analysis")
+            st.caption("Emotion detection from speech content, keywords, and semantic meaning")
+            
+            if 'transcription' in results and results['transcription']:
+                transcript_text = results['transcription'].get('text', '')
+                
+                if transcript_text and transcript_text != 'No speech detected':
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Word Count", len(transcript_text.split()))
+                    with col2:
+                        st.metric("Language", results['transcription'].get('language', 'en').upper())
+                    
+                    # Show text features if available
+                    if 'text_features' in results and results['text_features']:
+                        st.write("**Text Features Extracted:**")
+                        text_feat = results['text_features']
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Text Features", len(text_feat))
+                        with col2:
+                            if 'lexical' in text_feat:
+                                st.write("Lexical features")
+                            if 'sentiment' in text_feat:
+                                st.write("Sentiment analysis")
+                        with col3:
+                            if 'embeddings' in text_feat:
+                                st.write("Semantic embeddings")
+                            st.write("Emotion lexicons")
+                    
+                    # Show transcript in expander
+                    with st.expander("View Full Transcript"):
+                        st.text_area("Transcript Content", transcript_text, height=200, key="transcript_text")
+                    
+                    st.info("Text-specific emotion predictions are integrated in the 'Multimodal Combined' tab. Text analysis examines word choice, sentiment, and semantic patterns.")
+                else:
+                    st.warning("No speech detected in the video")
+            else:
+                st.warning("Transcription not available")
+        
+        # Tab 4: Multimodal Combined
+        with modality_tabs[3]:
+            st.subheader("Multimodal Combined Analysis")
+            st.caption("Fusion of facial expressions, audio, and text for comprehensive emotion detection")
+            
+            # Prediction results
+            if 'prediction' in results:
+                pred = results['prediction']
+                
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    st.markdown(f"### **{pred['predicted_emotion'].upper()}**")
+                    st.metric("Confidence", f"{pred['confidence']:.1%}")
+                    
+                    # Show fusion strategy
+                    if 'fusion_method' in pred:
+                        st.caption(f"Method: {pred['fusion_method']}")
+                
+                with col2:
+                    st.markdown("**Confidence Distribution:**")
+                    emotion_labels = list(pred['all_confidences'].keys())
+                    confidences = list(pred['all_confidences'].values())
+                    
+                    # Bar chart
+                    df = pd.DataFrame({
+                        'Emotion': emotion_labels,
+                        'Confidence': confidences
+                    })
+                    st.bar_chart(df.set_index('Emotion'))
             
                 # Model-specific analysis
                 if 'reasoning' in pred:
@@ -106,6 +229,31 @@ def render_results_tab():
                                 st.success("Majority agreement")
                             else:
                                 st.warning("Models disagree")
+                
+                # Maelfabien model specific information
+                if 'individual_models' in pred and any(k in pred['individual_models'] for k in ['text_cnn_lstm', 'audio_time_cnn', 'video_xception']):
+                    st.markdown("---")
+                    st.subheader("Maelfabien Multimodal - Individual Modality Predictions")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    individual = pred['individual_models']
+                    
+                    with col1:
+                        st.markdown("**Text CNN-LSTM:**")
+                        st.write(individual.get('text_cnn_lstm', 'N/A').title())
+                        st.caption("Analyzes transcript")
+                    
+                    with col2:
+                        st.markdown("**Audio Time-CNN:**")
+                        st.write(individual.get('audio_time_cnn', 'N/A').title())
+                        st.caption("Analyzes voice")
+                    
+                    with col3:
+                        st.markdown("**Video XCeption:**")
+                        st.write(individual.get('video_xception', 'N/A').title())
+                        st.caption("Analyzes facial expressions")
+            else:
+                st.info("No multimodal prediction available for this video")
         
         st.markdown("---")
         
@@ -208,6 +356,90 @@ def render_results_tab():
                     st.error("Mental Health Status: At Risk - Predominantly negative emotional expressions. Consider professional consultation.")
         
         st.markdown("---")
+        
+        # AI Agent Analysis (NEW SECTION)
+        if 'ai_analysis' in results and results['ai_analysis']:
+            st.header("AI Meeting Analysis")
+            
+            ai_analysis = results['ai_analysis']
+            
+            if not ai_analysis.get('agent_available', False):
+                st.info("AI Agent running in limited mode (OpenAI API not configured). For full LLM-powered analysis, add your OPENAI_API_KEY to .env file.")
+            
+            # Executive Summary
+            if ai_analysis.get('summary'):
+                st.subheader("Executive Summary")
+                st.write(ai_analysis['summary'])
+            
+            # Key Insights
+            if ai_analysis.get('key_insights'):
+                st.subheader("Key Insights")
+                for insight in ai_analysis['key_insights']:
+                    st.markdown(f"- {insight}")
+            
+            # Emotional Dynamics
+            if ai_analysis.get('emotional_dynamics'):
+                st.subheader("Emotional Dynamics")
+                ed = ai_analysis['emotional_dynamics']
+                if isinstance(ed, dict) and 'analysis' in ed:
+                    st.write(ed['analysis'])
+                elif isinstance(ed, dict):
+                    for key, value in ed.items():
+                        st.write(f"**{key.replace('_', ' ').title()}**: {value}")
+                else:
+                    st.write(ed)
+            
+            # Recommendations
+            if ai_analysis.get('recommendations'):
+                st.subheader("Recommendations")
+                for i, rec in enumerate(ai_analysis['recommendations'], 1):
+                    st.markdown(f"{i}. {rec}")
+            
+            # Knowledge Base Context
+            if ai_analysis.get('knowledge_base_context'):
+                with st.expander("Knowledge Base Context Used"):
+                    for i, ctx in enumerate(ai_analysis['knowledge_base_context'], 1):
+                        st.markdown(f"**Context {i}** (Relevance: {ctx['similarity_score']:.0%})")
+                        st.text(ctx['content'][:300] + "...")
+                        st.caption(f"Document ID: {ctx['document_id']}, Page: {ctx.get('page_number', 'N/A')}")
+                        st.markdown("---")
+            
+            # Detailed Analysis
+            if ai_analysis.get('detailed_analysis'):
+                with st.expander("Detailed Analysis"):
+                    st.write(ai_analysis['detailed_analysis'])
+            
+            # Raw LLM Output (Full Transparency)
+            if ai_analysis.get('raw_llm_response'):
+                st.subheader("LLM Transparency")
+                st.info(f"**Model Used**: {ai_analysis.get('llm_model', 'Unknown')}")
+                
+                # Separate expanders at same level (no nesting)
+                with st.expander("View Raw LLM Response", expanded=False):
+                    st.markdown("**Complete unprocessed output from the LLM:**")
+                    st.text_area(
+                        "Raw Response",
+                        value=ai_analysis['raw_llm_response'],
+                        height=400,
+                        disabled=True,
+                        label_visibility="collapsed"
+                    )
+                
+                with st.expander("View Prompt Sent to LLM", expanded=False):
+                    st.markdown("**Full prompt that was sent to the LLM:**")
+                    st.text_area(
+                        "Prompt",
+                        value=ai_analysis.get('llm_prompt', 'Prompt not available'),
+                        height=600,
+                        disabled=True,
+                        label_visibility="collapsed"
+                    )
+            
+            # Error display
+            if 'error' in ai_analysis:
+                st.error(f"Analysis error: {ai_analysis['error']}")
+            
+            st.markdown("---")
         
         # Transcription
         if 'transcription' in results:

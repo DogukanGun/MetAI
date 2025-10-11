@@ -31,6 +31,22 @@ try:
     import nltk
     from nltk.tokenize import word_tokenize, sent_tokenize
     NLTK_AVAILABLE = True
+    
+    # Auto-download required NLTK resources if missing
+    def _ensure_nltk_resources():
+        resources = [
+            'punkt_tab', 'punkt', 'vader_lexicon', 'stopwords', 
+            'averaged_perceptron_tagger', 'averaged_perceptron_tagger_eng',
+            'omw-1.4'
+        ]
+        for resource in resources:
+            try:
+                nltk.download(resource, quiet=True)
+            except:
+                pass
+    
+    _ensure_nltk_resources()
+    
 except ImportError:
     NLTK_AVAILABLE = False
     logging.warning("nltk not available")
