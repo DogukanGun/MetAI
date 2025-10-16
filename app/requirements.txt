@@ -52,3 +52,11 @@ tqdm>=4.65.0
 # Utilities
 PyYAML>=6.0.1
 python-dotenv>=1.0.0
+
+# TTS (EmotiVoice) Dependencies
+numba>=0.56.0
+yacs>=0.1.8
+g2p-en>=2.1.0
+jieba>=0.42.1
+pypinyin>=0.47.0
+pypinyin-dict>=0.1.0

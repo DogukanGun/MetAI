@@ -1,12 +1,12 @@
 """
 Chat Controller
 
-Handles HTTP endpoints for AI chat functionality.
+Handles HTTP endpoints for AI chat functionality including TTS.
 """
 
 import logging
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse, Response
 
 from api.models.response_models import (
     StartChatRequest,
@@ -19,6 +19,15 @@ from api.services.chat_service_mongo import ChatServiceMongo
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["AI Chat"])
+
+# Import TTS engine
+try:
+    from tts import get_tts_engine
+    TTS_AVAILABLE = True
+    logger.info("TTS engine available")
+except ImportError:
+    TTS_AVAILABLE = False
+    logger.warning("TTS engine not available")
 
 # Global chat service instance with MongoDB
 chat_service = ChatServiceMongo()
@@ -371,3 +380,107 @@ async def health_check():
             "service": "AI Chat Service",
             "error": str(e)
         }
+
+@router.post(
+    "/tts",
+    summary="Text to Speech conversion",
+    description="Convert text to speech audio with emotion control",
+    response_class=Response
+)
+async def text_to_speech(
+    text: str = Query(..., description="Text to convert to speech"),
+    emotion: str = Query("neutral", description="Emotion for synthesis (happy, sad, angry, etc.)"),
+    speaker: str = Query("8051", description="Speaker voice ID"),
+    speed: float = Query(1.0, ge=0.5, le=2.0, description="Speech speed (0.5-2.0)")
+):
+    """
+    Convert text to speech audio.
+    
+    Returns WAV audio file that can be played directly.
+    
+    Example:
+        curl -X POST "http://localhost:8000/api/v1/chat/tts?text=Hello&emotion=happy" --output audio.wav
+    """
+    if not TTS_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="TTS service not available. Run 'python tts/setup_emotivoice.py' first."
+        )
+    
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="Text parameter is required")
+    
+    try:
+        logger.info(f"TTS request: text='{text[:50]}...', emotion={emotion}, speaker={speaker}")
+        
+        # Get TTS engine
+        tts = get_tts_engine()
+        
+        if not tts.is_ready():
+            raise HTTPException(
+                status_code=503,
+                detail="TTS engine not initialized. Please wait or contact admin."
+            )
+        
+        # Generate audio
+        audio_bytes = tts.text_to_speech(
+            text=text,
+            emotion=emotion,
+            speaker=speaker,
+            speed=speed
+        )
+        
+        if audio_bytes is None:
+            raise HTTPException(
+                status_code=500,
+                detail="TTS synthesis failed"
+            )
+        
+        # Return audio file
+        return Response(
+            content=audio_bytes,
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": f"attachment; filename=speech.wav",
+                "X-TTS-Emotion": emotion,
+                "X-TTS-Speaker": speaker
+            }
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"TTS failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"TTS error: {str(e)}")
+
+
+@router.get(
+    "/tts/voices",
+    summary="Get available voices",
+    description="Get list of available TTS voices and emotions"
+)
+async def get_tts_voices():
+    """
+    Get available TTS voices and emotions.
+    
+    Returns:
+        Dictionary with available voices and emotions
+    """
+    if not TTS_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="TTS service not available"
+        )
+    
+    try:
+        tts = get_tts_engine()
+        
+        return {
+            "voices": tts.get_available_voices(),
+            "emotions": tts.get_available_emotions(),
+            "ready": tts.is_ready()
+        }
+    
+    except Exception as e:
+        logger.error(f"Failed to get TTS info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
