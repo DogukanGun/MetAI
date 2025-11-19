@@ -111,11 +111,36 @@ def render_help_tab(config):
     - **Deep Networks**: Multi-layer perceptrons with dropout
     - **Ensemble Voting**: Weighted combination of all models
     
+    ### Text-to-Speech (TTS) Feature
+    
+    The system includes **EmotiVoice** text-to-speech functionality that allows you to:
+    
+    - **Listen to Transcripts**: Convert video transcripts to speech with emotion matching
+    - **Listen to Analysis**: Hear AI-generated summaries and insights
+    - **Emotion-Based Voice**: TTS automatically matches the detected emotion (happy, sad, angry, etc.)
+    
+    **To Enable TTS**:
+    1. Run: `python tts/setup_emotivoice.py`
+    2. Restart the Streamlit app
+    3. TTS buttons will appear in the Results tab
+    
+    **Available in Results Tab**:
+    - 🔊 **Listen to Transcript**: Converts transcript to speech with detected emotion
+    - 🔊 **Listen to Summary**: Converts AI analysis summary to speech
+    - 🔊 **Listen to Result**: Announces the detected emotion with confidence
+    
+    **TTS Features**:
+    - Emotion-aware voice synthesis
+    - Multiple speaker voices available
+    - Speed control (0.5x - 2.0x)
+    - Supports English and Chinese
+    
     ### References
     
     This system integrates concepts from:
     - Random Feature Representation Boosting (this repository)
     - USDM (Unsupervised Self-Distillation for Multimodal Emotion Recognition)
     - Emotion-LLaMA
+    - EmotiVoice (Text-to-Speech)
     - Various multimodal emotion recognition papers
     """)

@@ -1,0 +1,12 @@
+[server]
+# Force module reloading
+runOnSave = true
+
+[runner]
+# Don't cache module imports
+magicEnabled = true
+
+[client]
+# Disconnect after inactivity
+showErrorDetails = true
+

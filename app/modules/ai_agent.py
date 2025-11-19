@@ -3,6 +3,8 @@ AI Agent for Meeting Analysis
 
 Combines emotion recognition results with knowledge base retrieval
 to provide intelligent meeting analysis and insights.
+
+Version: 2.0 - Fixed OpenAI import for Streamlit
 """
 
 import os
@@ -13,13 +15,54 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# OpenAI
+# Force module reload marker
+__version__ = "2.0"
+_FORCE_RELOAD = True
+
+# Configure logging first
+logging.basicConfig(level=logging.INFO, force=True)
+
+# OpenAI - Force import and provide fallback
+OPENAI_AVAILABLE = False
+OpenAI = None
+
+# Try multiple import strategies
+import sys
+logging.info(f"Python executable: {sys.executable}")
+logging.info(f"Python path: {sys.path[:3]}")
+
 try:
-    from openai import OpenAI
+    logging.info("Attempting to import OpenAI library...")
+    from openai import OpenAI as OpenAIClient
+    OpenAI = OpenAIClient
     OPENAI_AVAILABLE = True
-except ImportError:
+    logging.info("✓ OpenAI library imported successfully")
+    logging.info(f"✓ OpenAI class: {OpenAI}")
+except ImportError as e:
     OPENAI_AVAILABLE = False
-    logging.warning("OpenAI not available. Install with: pip install openai")
+    logging.error(f"✗ OpenAI ImportError: {e}")
+    logging.error(f"   Python executable: {sys.executable}")
+    logging.error("   Install with: pip install openai")
+    
+    # Try to get more details
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("openai")
+        if spec:
+            logging.error(f"   OpenAI module found at: {spec.origin}")
+        else:
+            logging.error("   OpenAI module not found in path")
+    except Exception as e2:
+        logging.error(f"   Could not check module: {e2}")
+        
+except Exception as e:
+    OPENAI_AVAILABLE = False
+    logging.error(f"✗ Unexpected error importing OpenAI: {e}")
+    import traceback
+    logging.error(traceback.format_exc())
+
+# Log the import status immediately
+logging.info(f"AI Agent module loaded - OPENAI_AVAILABLE: {OPENAI_AVAILABLE}, OpenAI: {OpenAI}")
 
 
 logger = logging.getLogger(__name__)
@@ -71,18 +114,37 @@ class MeetingAnalysisAgent:
         
         # Initialize OpenAI client with appropriate settings
         self.client = None
-        if OPENAI_AVAILABLE and self.api_key:
+        
+        # Debug logging
+        logger.info(f"OpenAI available: {OPENAI_AVAILABLE}")
+        logger.info(f"OpenAI object: {OpenAI}")
+        logger.info(f"Provider: {self.provider}")
+        logger.info(f"API key set: {bool(self.api_key)}")
+        logger.info(f"API key value: {self.api_key}")
+        logger.info(f"Base URL: {self.base_url}")
+        logger.info(f"Model: {self.model}")
+        
+        # Try to create client - force creation for local provider even if OPENAI_AVAILABLE is False
+        if OpenAI and self.api_key:
             try:
+                logger.info(f"Creating OpenAI client with base_url={self.base_url}")
                 self.client = OpenAI(
                     api_key=self.api_key,
                     base_url=self.base_url
                 )
-                logger.info(f"AI Agent initialized with {self.provider} provider using {self.model}")
+                logger.info(f"✓ AI Agent client initialized successfully with {self.provider} provider using {self.model}")
             except Exception as e:
-                logger.error(f"Failed to initialize OpenAI client: {e}")
+                logger.error(f"✗ Failed to initialize OpenAI client: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 self.client = None
+        elif not OpenAI:
+            logger.error(f"✗ OpenAI class is None - import failed. OPENAI_AVAILABLE={OPENAI_AVAILABLE}")
+            logger.error("Try: pip install --upgrade openai")
+        elif not self.api_key:
+            logger.error(f"✗ API key not set for provider '{self.provider}'")
         else:
-            logger.warning("API key not set. Agent will operate in limited mode.")
+            logger.warning(f"✗ Agent will operate in limited mode. OPENAI_AVAILABLE={OPENAI_AVAILABLE}, OpenAI={OpenAI}, api_key={bool(self.api_key)}")
     
     def analyze_meeting(
         self,

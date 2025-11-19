@@ -36,6 +36,7 @@ nltk>=3.8.1
 spacy>=3.6.0
 textblob>=0.17.1
 vaderSentiment>=3.3.2
+openai>=1.0.0
 openai-whisper
 
 # Video Processing
