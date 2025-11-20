@@ -20,6 +20,9 @@ from api.controllers.emotion_controller import router as emotion_router
 from api.controllers.knowledge_controller import router as knowledge_router
 from api.controllers.complete_analysis_controller import router as complete_router
 from api.controllers.chat_controller import router as chat_router
+from api.controllers.visualization_controller import router as visualization_router
+from api.controllers.customization_controller import router as customization_router
+from api.controllers.reports_controller import router as reports_router
 
 
 # Configure logging
@@ -131,6 +134,9 @@ app.include_router(emotion_router)
 app.include_router(knowledge_router)
 app.include_router(complete_router)
 app.include_router(chat_router)
+app.include_router(visualization_router)
+app.include_router(customization_router)
+app.include_router(reports_router)
 
 
 # Root endpoint
@@ -164,7 +170,17 @@ async def root():
             "system_status": "/api/v1/analyze/status",
             "chat_start": "/api/v1/chat/start",
             "chat_message": "/api/v1/chat/message",
-            "chat_sessions": "/api/v1/chat/sessions"
+            "chat_sessions": "/api/v1/chat/sessions",
+            "visualization_confidence": "/api/v1/visualization/confidence-distribution",
+            "visualization_facial": "/api/v1/visualization/facial-emotion-distribution",
+            "visualization_temporal": "/api/v1/visualization/temporal-emotion",
+            "visualization_modality": "/api/v1/visualization/modality-weights",
+            "visualization_all": "/api/v1/visualization/all-charts",
+            "customization_options": "/api/v1/customization/options",
+            "customization_validate": "/api/v1/customization/validate",
+            "customization_default": "/api/v1/customization/default",
+            "reports_comprehensive": "/api/v1/reports/comprehensive",
+            "reports_ai_commented": "/api/v1/reports/ai-commented"
         },
         "features": [
             "5 different emotion recognition models running in parallel",
@@ -174,7 +190,10 @@ async def root():
             "Multimodal fusion (Audio + Visual + Text)",
             "Citation-based AI analysis",
             "LLM-friendly JSON responses",
-            "Interactive AI chat with context management"
+            "Interactive AI chat with context management",
+            "Graph and chart generation (bar charts, temporal plots, modality weights)",
+            "Customizable analysis parameters (fusion strategy, modalities, model params)",
+            "Comprehensive text reports and AI-commented reports"
         ],
         "recommended_workflow": [
             "1. Upload documents to knowledge base: POST /api/v1/knowledge/documents",
