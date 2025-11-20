@@ -10,11 +10,19 @@ from typing import List, Tuple, Optional
 import logging
 
 try:
-    from moviepy.editor import VideoFileClip
-    MOVIEPY_AVAILABLE = True
+    # Try new moviepy 2.x import structure first
+    try:
+        from moviepy import VideoFileClip
+        MOVIEPY_AVAILABLE = True
+        logging.info("moviepy 2.x loaded successfully")
+    except ImportError:
+        # Fall back to old moviepy 1.x import structure
+        from moviepy.editor import VideoFileClip
+        MOVIEPY_AVAILABLE = True
+        logging.info("moviepy 1.x loaded successfully")
 except ImportError:
     MOVIEPY_AVAILABLE = False
-    logging.warning("moviepy not available, using OpenCV for video processing")
+    logging.warning("moviepy not available, using librosa for audio processing")
 
 import librosa
 

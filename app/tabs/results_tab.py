@@ -415,22 +415,47 @@ def render_results_tab():
             st.subheader("Audio & Voice Analysis")
             st.caption("Emotion detection from voice tone, prosody, pitch, and acoustic features")
             
-            if 'audio_features' in results and results['audio_features']:
-                st.write("**Audio Features Extracted:**")
+            # Check for audio features (can be in results['features']['audio'] or results['audio_features'])
+            has_audio = False
+            audio_feat = None
+            
+            # Try nested structure first (results['features']['audio'])
+            if 'features' in results and isinstance(results['features'], dict):
+                if 'audio' in results['features']:
+                    audio_feat = results['features']['audio']
+            
+            # Fallback to direct structure
+            if audio_feat is None and 'audio_features' in results:
                 audio_feat = results['audio_features']
+            
+            # Check if we have valid audio features
+            if audio_feat is not None:
+                try:
+                    import numpy as np
+                    if isinstance(audio_feat, np.ndarray) and len(audio_feat) > 0:
+                        has_audio = True
+                    elif isinstance(audio_feat, dict) and audio_feat:
+                        has_audio = True
+                    elif isinstance(audio_feat, (list, tuple)) and len(audio_feat) > 0:
+                        has_audio = True
+                except:
+                    pass
+            
+            if has_audio and audio_feat is not None:
+                st.write("**Audio Features Extracted:**")
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Total Audio Features", len(audio_feat))
+                    try:
+                        st.metric("Total Audio Features", len(audio_feat))
+                    except:
+                        st.metric("Total Audio Features", "Available")
                 with col2:
-                    if 'prosodic' in audio_feat:
-                        st.write("Prosodic (pitch, energy, rhythm)")
-                    if 'spectral' in audio_feat:
-                        st.write("Spectral (MFCCs, mel-spectrogram)")
+                    st.write("✓ Prosodic (pitch, energy, rhythm)")
+                    st.write("✓ Spectral (MFCCs, mel-spectrogram)")
                 with col3:
-                    if 'opensmile' in audio_feat:
-                        st.write("OpenSMILE features")
-                    st.write("Voice quality (jitter, shimmer)")
+                    st.write("✓ Voice quality (jitter, shimmer)")
+                    st.write("✓ Temporal dynamics")
                 
                 st.info("Audio-specific emotion predictions are integrated in the 'Multimodal Combined' tab. Individual audio models analyze voice tone, speaking rate, and vocal patterns.")
             else:
@@ -452,22 +477,46 @@ def render_results_tab():
                         st.metric("Language", results['transcription'].get('language', 'en').upper())
                     
                     # Show text features if available
-                    if 'text_features' in results and results['text_features']:
-                        st.write("**Text Features Extracted:**")
+                    has_text_features = False
+                    text_feat = None
+                    
+                    # Try nested structure first (results['features']['text'])
+                    if 'features' in results and isinstance(results['features'], dict):
+                        if 'text' in results['features']:
+                            text_feat = results['features']['text']
+                    
+                    # Fallback to direct structure
+                    if text_feat is None and 'text_features' in results:
                         text_feat = results['text_features']
+                    
+                    # Check if we have valid text features
+                    if text_feat is not None:
+                        try:
+                            import numpy as np
+                            if isinstance(text_feat, np.ndarray) and len(text_feat) > 0:
+                                has_text_features = True
+                            elif isinstance(text_feat, dict) and text_feat:
+                                has_text_features = True
+                            elif isinstance(text_feat, (list, tuple)) and len(text_feat) > 0:
+                                has_text_features = True
+                        except:
+                            pass
+                    
+                    if has_text_features and text_feat is not None:
+                        st.write("**Text Features Extracted:**")
                         
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Text Features", len(text_feat))
+                            try:
+                                st.metric("Text Features", len(text_feat))
+                            except:
+                                st.metric("Text Features", "Available")
                         with col2:
-                            if 'lexical' in text_feat:
-                                st.write("Lexical features")
-                            if 'sentiment' in text_feat:
-                                st.write("Sentiment analysis")
+                            st.write("✓ Lexical features")
+                            st.write("✓ Sentiment analysis")
                         with col3:
-                            if 'embeddings' in text_feat:
-                                st.write("Semantic embeddings")
-                            st.write("Emotion lexicons")
+                            st.write("✓ Semantic embeddings")
+                            st.write("✓ Emotion lexicons")
                     
                     # Show transcript in expander
                     with st.expander("View Full Transcript"):

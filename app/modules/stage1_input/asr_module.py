@@ -3,24 +3,43 @@
 Uses Whisper or other ASR models to transcribe audio to text.
 """
 
+# Version marker to force Streamlit reload
+__version__ = "2.0"
+
 import torch
 import numpy as np
 from typing import Optional, List, Dict
 import logging
 
+# Configure logging first
+logger = logging.getLogger(__name__)
+
+# Try to import whisper with better error handling
+WHISPER_AVAILABLE = False
+whisper = None
+
 try:
-    import whisper
+    import whisper as whisper_module
+    whisper = whisper_module
     WHISPER_AVAILABLE = True
-except ImportError:
+    logger.info("✓ Whisper (openai-whisper) imported successfully")
+except ImportError as e:
     WHISPER_AVAILABLE = False
-    logging.warning("whisper not available")
+    logger.warning(f"✗ whisper not available: {e}")
+    logger.warning("Install with: pip install openai-whisper")
+except Exception as e:
+    WHISPER_AVAILABLE = False
+    logger.error(f"✗ Unexpected error importing whisper: {e}")
 
 try:
     from transformers import WhisperProcessor, WhisperForConditionalGeneration
     TRANSFORMERS_WHISPER_AVAILABLE = True
+    logger.info("✓ Transformers Whisper available")
 except ImportError:
     TRANSFORMERS_WHISPER_AVAILABLE = False
-    logging.warning("transformers not available for Whisper")
+    logger.warning("transformers not available for Whisper")
+
+logger.info(f"ASR Module - Whisper: {WHISPER_AVAILABLE}, Transformers: {TRANSFORMERS_WHISPER_AVAILABLE}")
 
 
 class ASRModule:
@@ -45,6 +64,8 @@ class ASRModule:
     def _load_model(self):
         """Load the ASR model."""
         self.logger.info(f"Loading Whisper model: {self.model_name}")
+        self.logger.info(f"WHISPER_AVAILABLE: {WHISPER_AVAILABLE}")
+        self.logger.info(f"TRANSFORMERS_WHISPER_AVAILABLE: {TRANSFORMERS_WHISPER_AVAILABLE}")
         
         if self.use_transformers and TRANSFORMERS_WHISPER_AVAILABLE:
             try:
@@ -59,18 +80,28 @@ class ASRModule:
                     low_cpu_mem_usage=False  # Avoid meta tensors
                 )
                 
-                self.logger.info("Loaded Whisper from transformers")
+                self.logger.info("✓ Loaded Whisper from transformers")
             except Exception as e:
-                self.logger.error(f"Error loading transformers Whisper: {e}")
+                self.logger.error(f"✗ Error loading transformers Whisper: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
                 self.use_transformers = False
         
         if not self.use_transformers and WHISPER_AVAILABLE:
             try:
+                self.logger.info("Attempting to load whisper model...")
                 self.model = whisper.load_model(self.model_name)
-                self.logger.info("Loaded Whisper from openai-whisper")
+                self.logger.info("✓ Loaded Whisper from openai-whisper successfully!")
             except Exception as e:
-                self.logger.error(f"Error loading Whisper: {e}")
+                self.logger.error(f"✗ Error loading Whisper: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
                 self.model = None
+        
+        if self.model is None:
+            self.logger.error("✗ Failed to load any ASR model!")
+            if not WHISPER_AVAILABLE and not TRANSFORMERS_WHISPER_AVAILABLE:
+                self.logger.error("No ASR libraries available. Install with: pip install openai-whisper")
     
     def transcribe(self, audio: np.ndarray, sample_rate: int = 16000) -> Dict:
         """

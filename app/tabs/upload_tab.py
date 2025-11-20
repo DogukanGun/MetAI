@@ -40,10 +40,26 @@ def process_video_pipeline(video_path, config, extractors):
         results['audio_path'] = audio_path
         
         # Log audio extraction status
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Audio extraction result: {len(audio)} samples, SR: {sr}, Path: {audio_path}")
+        
         if len(audio) == 0:
-            st.warning("No audio track found in this video or audio extraction failed")
-            import logging
-            logging.warning("Audio extraction returned empty array")
+            st.error("⚠️ **Audio Extraction Failed**")
+            st.warning("""
+            **Possible causes:**
+            1. Video has no audio track
+            2. Audio codec not supported
+            3. File permissions issue
+            
+            **Try these solutions:**
+            - Convert your video to MP4 with AAC audio
+            - Check if video plays with sound in a media player
+            - Try a different video file
+            
+            **The analysis will continue with visual data only.**
+            """)
+            logger.warning(f"Audio extraction failed for {video_path}")
         
         # Extract frames
         frames, timestamps = processor.extract_frames(
@@ -68,11 +84,26 @@ def process_video_pipeline(video_path, config, extractors):
         progress_bar.progress(15)
         
         # Transcribe audio
-        if config['modalities']['text']['enabled']:
+        if config['modalities']['text']['enabled'] and len(audio) > 0:
             status_text.text("Transcribing audio to text...")
             asr = ASRModule(model_name="base")
             transcription = asr.transcribe(audio, sr)
             results['transcription'] = transcription
+            
+            # Check if transcription is empty
+            if transcription.get('text', '').strip() == '':
+                st.info("ℹ️ No speech detected in audio. This might be because:")
+                st.write("- Video is silent or contains only background noise")
+                st.write("- Speech is too quiet or unclear")
+                st.write("- Audio quality is too low for speech recognition")
+                logger.info("Whisper transcription returned empty text")
+            else:
+                logger.info(f"Transcribed {len(transcription.get('text', ''))} characters")
+            
+            progress_bar.progress(25)
+        elif len(audio) == 0:
+            results['transcription'] = {'text': '', 'segments': [], 'language': 'en'}
+            st.info("⏭️ Skipping transcription - no audio available")
             progress_bar.progress(25)
         
         # Stage 2: Unimodal Feature Extraction
